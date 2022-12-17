@@ -6,6 +6,9 @@ class Player(models.Model):
     player_current_hp = models.IntegerField()
     player_max_hp = models.IntegerField()
 
+    screen_height = models.FloatField()
+    screen_width = models.FloatField()
+
 
 class Relic(models.Model):
     owner = models.ForeignKey(Player, related_name='relics', on_delete=models.CASCADE)
@@ -15,3 +18,6 @@ class Relic(models.Model):
 
     x_pos = models.FloatField()
     y_pos = models.FloatField()
+
+    height = models.FloatField()
+    width = models.FloatField()
