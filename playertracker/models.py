@@ -22,6 +22,8 @@ class Player(models.Model):
     deck_button_width = models.FloatField(default=0)
     deck_button_height = models.FloatField(default=0)
 
+    boss_name = models.CharField(max_length=50, default="")
+
 
 class Relic(models.Model):
     owner = models.ForeignKey(Player, related_name='relics', on_delete=models.CASCADE)
@@ -35,8 +37,28 @@ class Relic(models.Model):
     height = models.FloatField(default=0)
     width = models.FloatField(default=0)
 
+
 class Card(models.Model):
     owner = models.ForeignKey(Player, related_name='deck', on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=200)
+
+
+class MapNode(models.Model):
+    owner = models.ForeignKey(Player, related_name="map_nodes", on_delete=models.CASCADE)
+
+    x = models.IntegerField(default=0)
+    y = models.IntegerField(default=0)
+
+    offset_x = models.FloatField(default=0)
+    offset_y = models.FloatField(default=0)
+
+    symbol = models.CharField(max_length=5)
+
+
+class MapEdge(models.Model):
+    owner = models.ForeignKey(Player, related_name="map_edges", on_delete=models.CASCADE)
+
+    source = models.IntegerField(default=0)
+    destination = models.IntegerField(default=0)
