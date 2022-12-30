@@ -18,15 +18,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 from rest_framework import routers
-from quickstart import views
-
-router = routers.DefaultRouter()
-router.register(r'users', views.UserViewSet)
-router.register(r'groups', views.GroupViewSet)
+from rest_framework.authtoken import views
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('accounts/', include('django.contrib.auth.urls')),
     path('hello', include('helloworld.urls')),
     path('player/', include('playertracker.urls')),
     path('admin/', admin.site.urls),
+    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+    path('api-token-auth/', views.obtain_auth_token),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

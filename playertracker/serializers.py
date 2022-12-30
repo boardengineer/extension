@@ -33,7 +33,7 @@ class RelicSerializer(serializers.HyperlinkedModelSerializer):
         instance.y_pos = validated_data.get('y_pos', instance.y_pos)
 
 
-class PlayerSerializer(serializers.HyperlinkedModelSerializer):
+class PlayerSerializer(serializers.ModelSerializer):
     relics = RelicSerializer(many=True)
     deck = CardSerializer(many=True)
     map_nodes = MapNodeSerializer(many=True)
@@ -41,7 +41,7 @@ class PlayerSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Player
-        fields = ['twitch_username',
+        fields = ['user',
                 'player_current_hp', 'player_max_hp',
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
@@ -80,7 +80,7 @@ class PlayerSerializer(serializers.HyperlinkedModelSerializer):
         return instance
 
 
-class NukingPlayerSerializer(serializers.HyperlinkedModelSerializer):
+class NukingPlayerSerializer(serializers.ModelSerializer):
     relics = RelicSerializer(many=True)
     deck = CardSerializer(many=True)
     map_nodes = MapNodeSerializer(many=True)
@@ -88,7 +88,7 @@ class NukingPlayerSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Player
-        fields = ['twitch_username',
+        fields = ['user',
                 'player_current_hp', 'player_max_hp',
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
@@ -97,7 +97,7 @@ class NukingPlayerSerializer(serializers.HyperlinkedModelSerializer):
                 'relics', 'deck']
         
     def update(self, instance, validated_data):
-        instance.twitch_username = validated_data.get('twitch_username', instance.twitch_username)
+        #instance.user = validated_data.get('twitch_username', instance.twitch_username)
         instance.player_current_hp = validated_data.get('player_current_hp', instance.player_current_hp)
         instance.player_max_hp = validated_data.get('player_max_hp', instance.player_max_hp)
 

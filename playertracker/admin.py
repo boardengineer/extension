@@ -1,5 +1,8 @@
 from django.contrib import admin
+from rest_framework.authtoken.admin import TokenAdmin
 from playertracker.models import Player, Relic, Card, MapNode, MapEdge
+
+#TokenAdmin.raw_id_fields = ['user']
 
 # Register your models here.
 class PlayerAdmin(admin.ModelAdmin):

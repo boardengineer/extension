@@ -1,8 +1,9 @@
 from django.db import models
+from users.models import User
 
 # Create your models here.
 class Player(models.Model):
-    twitch_username = models.CharField(max_length=50)
+    user = models.ForeignKey(User, related_name='sts_player', on_delete=models.CASCADE)
     player_current_hp = models.IntegerField(default=0)
     player_max_hp = models.IntegerField(default=0)
 
