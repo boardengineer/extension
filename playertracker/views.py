@@ -12,9 +12,9 @@ from users.models import User
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([])
-def readonly_player_list(request, username):
+def readonly_player_list(request, channel_id):
     try:
-        user = User.objects.get(username=username)
+        user = User.objects.get(channel_id=channel_id)
     except User.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
