@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.core.cache import cache
 from rest_framework import generics,status,viewsets
 from rest_framework.authentication import BasicAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -13,6 +14,9 @@ from users.models import User
 @authentication_classes([])
 @permission_classes([])
 def readonly_player_list(request, channel_id):
+    if cache.get(channel_id) is not None:
+        print("returning cached copy")
+        return Response(cache.get(channel_id))
     try:
         user = User.objects.get(channel_id=channel_id)
     except User.DoesNotExist:
@@ -24,7 +28,9 @@ def readonly_player_list(request, channel_id):
         return Response(status=stats.HTTP_404_NOT_FOUND)
 
     serializer = PlayerSerializer(player, context={'request':request})
-    return Response(serializer.data)
+    result = Response(serializer.data)
+    cache.set(channel_id, serializer.data, 300)
+    return result
 
 @api_view(['GET','PUT','DELETE'])
 @authentication_classes([TokenAuthentication])
@@ -40,6 +46,7 @@ def update_player_view(request):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
+        cache.delete(player.user.channel_id)
         serializer = NukingPlayerSerializer(player, data=request.data)
         if serializer.is_valid():
             serializer.save()
