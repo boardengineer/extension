@@ -1,5 +1,8 @@
+from django.core.cache import cache
 from rest_framework import serializers
 from playertracker.models import Player, Relic, Card, MapNode, MapEdge
+
+from datetime import datetime
 
 class CardSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -18,12 +21,11 @@ class MapEdgeSerializer(serializers.HyperlinkedModelSerializer):
         model = MapEdge
         fields = ['source', 'destination']
 
-class RelicSerializer(serializers.HyperlinkedModelSerializer):
-    id = serializers.ModelField(model_field=Relic()._meta.get_field('id'))
 
+class RelicSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Relic
-        fields = ['id','name', 'description', 'x_pos', 'y_pos','height', 'width']
+        fields = ['name', 'description', 'x_pos', 'y_pos','height', 'width']
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
@@ -32,59 +34,34 @@ class RelicSerializer(serializers.HyperlinkedModelSerializer):
         instance.x_pos = validated_data.get('x_pos', instance.x_pos)
         instance.y_pos = validated_data.get('y_pos', instance.y_pos)
 
-
-class PlayerSerializer(serializers.ModelSerializer):
-    relics = RelicSerializer(many=True)
-    deck = CardSerializer(many=True)
-    map_nodes = MapNodeSerializer(many=True)
-    map_edges = MapEdgeSerializer(many=True)
+class MinPlayerSerializer(serializers.ModelSerializer):
+    deck_update_time = serializers.SerializerMethodField()
+    map_update_time = serializers.SerializerMethodField()
+    relic_update_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
         fields = ['user',
-                'player_current_hp', 'player_max_hp',
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
-                'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width',
-                'map_nodes', 'map_edges',
-                'relics', 'deck']
+                'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width', 'deck_update_time',
+                'map_update_time', 'relic_update_time']
 
-    def update(self, instance, validated_data):
-        instance.twitch_username = validated_data.get('twitch_username', instance.twitch_username)
-        instance.player_current_hp = validated_data.get('player_current_hp', instance.player_current_hp)
-        instance.player_max_hp = validated_data.get('player_max_hp', instance.player_max_hp)
+    def get_deck_update_time(self, instance):
+        return int(datetime.timestamp(instance.deck_update_time)) + 1
 
-        instance.screen_height = validated_data.get('screen_height', instance.screen_height)
-        instance.screen_width = validated_data.get('screen_width', instance.screen_width)
+    def get_map_update_time(self, instance):
+        return int(datetime.timestamp(instance.map_update_time)) + 1
 
-        relics = validated_data.get('relics')
-
-        for relic in relics:
-            relic_id = relic.get('id', None)
-            if relic_id:
-                saved_relic = Relic.objects.get(id=relic_id, owner=instance)
-
-                saved_relic.name = relic.get('name', saved_relic.name)
-                saved_relic.description = relic.get('description', saved_relic.description)
-                
-                saved_relic.x_pos = relic.get('x_pos', saved_relic.x_pos)
-                saved_relic.y_pos = relic.get('y_pos', saved_relic.y_pos)
-
-                saved_relic.height = relic.get('height', saved_relic.height)
-                saved_relic.width = relic.get('width', saved_relic.width)
-
-                saved_relic.save()
-
-        instance.save()
-
-        return instance
+    def get_relic_update_time(self,instance):
+        return int(datetime.timestamp(instance.relic_update_time)) + 1
 
 
 class NukingPlayerSerializer(serializers.ModelSerializer):
-    relics = RelicSerializer(many=True)
-    deck = CardSerializer(many=True)
-    map_nodes = MapNodeSerializer(many=True)
-    map_edges = MapEdgeSerializer(many=True)
+    relics = RelicSerializer(many=True, required=False)
+    deck = CardSerializer(many=True, required=False)
+    map_nodes = MapNodeSerializer(many=True, required=False)
+    map_edges = MapEdgeSerializer(many=True, required=False)
 
     class Meta:
         model = Player
@@ -115,65 +92,63 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
         instance.deck_button_height = validated_data.get('deck_button_height', instance.deck_button_height)
         instance.deck_button_width = validated_data.get('deck_button_width', instance.deck_button_width)
 
-        Relic.objects.filter(owner=instance).delete()
 
         relics = validated_data.get('relics')
-
-        for relic in relics:
-            saved_relic = Relic(owner=instance)
-
-            saved_relic.name = relic.get('name', saved_relic.name)
-            saved_relic.description = relic.get('description', saved_relic.description)
-                
-            saved_relic.x_pos = relic.get('x_pos', saved_relic.x_pos)
-            saved_relic.y_pos = relic.get('y_pos', saved_relic.y_pos)
-
-            saved_relic.height = relic.get('height', saved_relic.height)
-            saved_relic.width = relic.get('width', saved_relic.width)
-
-            saved_relic.save()
+        if relics is not None:
+            cache.delete(str(instance.user.channel_id) + 'RELICS')
+            instance.relic_update_time = datetime.now()
+            Relic.objects.filter(owner=instance).delete()
+            for relic in relics:
+                relic_serializer = RelicSerializer(data=relic)
+                if relic_serializer.is_valid():
+                    relic_serializer.save(owner=instance)
         
-        Card.objects.filter(owner=instance).delete()
 
         deck = validated_data.get('deck')
+        if deck is not None:
+            cache.delete(str(instance.user.channel_id) + 'DECK')
+            Card.objects.filter(owner=instance).delete()
+            instance.deck_update_time = datetime.now()
+            for card in deck:
+                saved_card = Card(owner=instance)
 
-        for card in deck:
-            saved_card = Card(owner=instance)
+                saved_card.name = card.get('name', saved_card.name)
+                saved_card.description = card.get('description', saved_card.description)
 
-            saved_card.name = card.get('name', saved_card.name)
-            saved_card.description = card.get('description', saved_card.description)
-
-            saved_card.save()
-
-    
-        MapNode.objects.filter(owner=instance).delete()
+                saved_card.save() 
 
         map_nodes = validated_data.get('map_nodes')
+        if map_nodes is not None:
+            cache.delete(str(instance.user.channel_id) + 'NODES')
+            instance.map_update_time = datetime.now()
+            MapNode.objects.filter(owner=instance).delete()
+            for map_node in map_nodes:
+                saved_node = MapNode(owner=instance)
 
-        for map_node in map_nodes:
-            saved_node = MapNode(owner=instance)
+                saved_node.x = map_node.get('x', saved_node.x)
+                saved_node.y = map_node.get('y', saved_node.y)
 
-            saved_node.x = map_node.get('x', saved_node.x)
-            saved_node.y = map_node.get('y', saved_node.y)
+                saved_node.offset_x = map_node.get('offset_x', saved_node.offset_x)
+                saved_node.offset_y = map_node.get('offset_y', saved_node.offset_y)
 
-            saved_node.offset_x = map_node.get('offset_x', saved_node.offset_x)
-            saved_node.offset_y = map_node.get('offset_y', saved_node.offset_y)
+                saved_node.symbol = map_node.get('symbol', saved_node.symbol)
 
-            saved_node.symbol = map_node.get('symbol', saved_node.symbol)
+                saved_node.save()
 
-            saved_node.save()
-
-        MapEdge.objects.filter(owner=instance).delete()
 
         map_edges = validated_data.get('map_edges')
+        if map_edges is not None:
+            cache.delete(str(instance.user.channel_id) + 'EDGES')
+            instance.map_update_time = datetime.now()
+            MapEdge.objects.filter(owner=instance).delete()
+            for map_edge in map_edges:
+                saved_edge = MapEdge(owner=instance)
 
-        for map_edge in map_edges:
-            saved_edge = MapEdge(owner=instance)
-
-            saved_edge.source = map_edge.get('source', saved_edge.source)
-            saved_edge.destination = map_edge.get('destination', saved_edge.destination)
+                saved_edge.source = map_edge.get('source', saved_edge.source)
+                saved_edge.destination = map_edge.get('destination', saved_edge.destination)
             
-            saved_edge.save()
+                saved_edge.save()
 
+        
         instance.save()
         return instance

@@ -1,6 +1,8 @@
 from django.db import models
 from users.models import User
 
+import datetime
+
 # Create your models here.
 class Player(models.Model):
     user = models.ForeignKey(User, related_name='sts_player', on_delete=models.CASCADE)
@@ -24,6 +26,10 @@ class Player(models.Model):
     deck_button_height = models.FloatField(default=0)
 
     boss_name = models.CharField(max_length=50, default="")
+
+    relic_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
+    map_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
+    deck_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
 
 
 class Relic(models.Model):
@@ -63,3 +69,15 @@ class MapEdge(models.Model):
 
     source = models.IntegerField(default=0)
     destination = models.IntegerField(default=0)
+
+
+class DecisionPrompt(models.Model):
+    owner = models.ForeignKey(Player, related_name="decision_prompts", on_delete=models.CASCADE)
+
+
+class DecisionOption(models.Model):
+    prompt = models.ForeignKey(DecisionPrompt, related_name="options", on_delete=models.CASCADE)
+
+
+class DecisionVote(models.Model):
+    option = models.ForeignKey(DecisionOption, related_name="votes", on_delete=models.CASCADE)
