@@ -6,17 +6,37 @@ from datetime import datetime
 
 
 class DecisionOptionSerializer(serializers.ModelSerializer):
+    prompt_id = serializers.IntegerField(required=False)
+
     class Meta:
         model = DecisionOption
-        fields = ['id', 'x_pos', 'y_pos', 'height', 'width', 'value']
+        fields = ['id', 'x_pos', 'y_pos', 'height', 'width', 'value', 'prompt_id']
 
 
 class DecisionPromptSerializer(serializers.ModelSerializer):
     options = DecisionOptionSerializer(many=True)
+    user = serializers.IntegerField(required=False)
 
     class Meta:
         model = DecisionPrompt
-        fields = ['options']
+        fields = ['options','user']
+
+
+    def create(self, validated_data):
+        print(validated_data)
+        obj = DecisionPrompt(owner_id=validated_data.get('user'))
+        options = validated_data.get('options')
+        
+        obj.save()
+        if options is not None:
+            for option in options:
+                option['prompt_id'] = obj.id
+                print(option)
+                option_serializer = DecisionOptionSerializer(data=option)
+                if option_serializer.is_valid():
+                    option_serializer.save()
+
+        return obj
 
 
 class CardSerializer(serializers.HyperlinkedModelSerializer):
@@ -81,6 +101,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
     deck = CardSerializer(many=True, required=False)
     map_nodes = MapNodeSerializer(many=True, required=False)
     map_edges = MapEdgeSerializer(many=True, required=False)
+    decision_prompts = DecisionPromptSerializer(many=True, required=False)
 
     class Meta:
         model = Player
@@ -90,7 +111,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
                 'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width',
                 'map_nodes', 'map_edges',
-                'relics', 'deck']
+                'relics', 'deck', 'decision_prompts']
         
     def update(self, instance, validated_data):
         #instance.user = validated_data.get('twitch_username', instance.twitch_username)
@@ -168,6 +189,18 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
             
                 saved_edge.save()
 
+        decision_prompts = validated_data.get('decision_prompts')
+        if decision_prompts is not None:
+            cache.delete(str(instance.user.channel_id) + "DECISION")
+            instance.decision_update_time = datetime.now()
+            DecisionPrompt.objects.filter(owner=instance).delete()
+            for prompt in decision_prompts:
+                print('Prompt')
+                prompt['user'] = instance.id
+                print(prompt)
+                prompt_serializer = DecisionPromptSerializer(data=prompt)
+                if prompt_serializer.is_valid():
+                    prompt_serializer.save()
         
         instance.save()
         return instance
