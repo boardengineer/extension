@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from playertracker.models import Card, DecisionOption, DecisionPrompt, DecisionVote, MapNode,MapEdge,Player,Relic
-from playertracker.serializers import CardSerializer, DecisionOptionSerializer, DecisionPromptSerializer, MapEdgeSerializer,MapNodeSerializer,MinPlayerSerializer,NukingPlayerSerializer,RelicSerializer
+from playertracker.serializers import CardSerializer, DecisionOptionSerializer, DecisionPromptSerializer, DecisionVoteSerializer, MapEdgeSerializer,MapNodeSerializer,MinPlayerSerializer,NukingPlayerSerializer,RelicSerializer
 from users.models import User
 
 from datetime import datetime
@@ -22,18 +22,17 @@ from datetime import datetime
 def decision_query(request, prompt_id):
     cache_key = prompt_id + "DECISION_QUERY"
     if cache.get(cache_key) is not None:
-        options_json = cache.get(cache_key)
+        votes_json = cache.get(cache_key)
     else:
         options = DecisionOption.objects.filter(prompt=prompt_id)
-        options_json = []
+        votes_json = []
         for option in options:
-            option_serializer = DecisionOptionSerializer(option)
-            count = DecisionVote.objects.filter(option=option).count()
-            data = option_serializer.data
-            data['votes'] = count
-            options_json.append(data)
-        cache.set(cache_key, options_json, 300)
-    return Response(options_json)
+            votes = DecisionVote.objects.filter(option=option)
+            for vote in votes:
+                vote_serializer = DecisionVoteSerializer(vote)
+                votes_json.append(vote_serializer.data)
+        cache.set(cache_key, votes_json, 300)
+    return Response(votes_json)
 
 
 @api_view(['PUT'])

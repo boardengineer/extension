@@ -5,6 +5,10 @@ from playertracker.models import DecisionOption, DecisionPrompt, DecisionVote, P
 
 from datetime import datetime
 
+class DecisionVoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DecisionVote
+        fields = ['option', 'twitch_user_id']
 
 class DecisionOptionSerializer(serializers.ModelSerializer):
     prompt_id = serializers.IntegerField(required=False)
