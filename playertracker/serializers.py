@@ -23,7 +23,6 @@ class DecisionPromptSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
-        print(validated_data)
         obj = DecisionPrompt(owner_id=validated_data.get('user'))
         options = validated_data.get('options')
         
@@ -31,7 +30,6 @@ class DecisionPromptSerializer(serializers.ModelSerializer):
         if options is not None:
             for option in options:
                 option['prompt_id'] = obj.id
-                print(option)
                 option_serializer = DecisionOptionSerializer(data=option)
                 if option_serializer.is_valid():
                     option_serializer.save()
@@ -132,10 +130,15 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
         instance.deck_button_height = validated_data.get('deck_button_height', instance.deck_button_height)
         instance.deck_button_width = validated_data.get('deck_button_width', instance.deck_button_width)
 
+        invalidate_relics = False
+        invalidate_deck = False
+        invalidate_nodes = False
+        invalidate_edges = False
+        invalidate_decision = False
 
         relics = validated_data.get('relics')
         if relics is not None:
-            cache.delete(str(instance.user.channel_id) + 'RELICS')
+            invalidate_relics = True
             instance.relic_update_time = datetime.now()
             Relic.objects.filter(owner=instance).delete()
             for relic in relics:
@@ -146,7 +149,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         deck = validated_data.get('deck')
         if deck is not None:
-            cache.delete(str(instance.user.channel_id) + 'DECK')
+            invalidate_deck = True
             Card.objects.filter(owner=instance).delete()
             instance.deck_update_time = datetime.now()
             for card in deck:
@@ -159,7 +162,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         map_nodes = validated_data.get('map_nodes')
         if map_nodes is not None:
-            cache.delete(str(instance.user.channel_id) + 'NODES')
+            invalidate_nodes = True
             instance.map_update_time = datetime.now()
             MapNode.objects.filter(owner=instance).delete()
             for map_node in map_nodes:
@@ -178,7 +181,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         map_edges = validated_data.get('map_edges')
         if map_edges is not None:
-            cache.delete(str(instance.user.channel_id) + 'EDGES')
+            invalidate_edges = True
             instance.map_update_time = datetime.now()
             MapEdge.objects.filter(owner=instance).delete()
             for map_edge in map_edges:
@@ -191,16 +194,30 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         decision_prompts = validated_data.get('decision_prompts')
         if decision_prompts is not None:
-            cache.delete(str(instance.user.channel_id) + "DECISION")
+            invalidate_decision = True
             instance.decision_update_time = datetime.now()
             DecisionPrompt.objects.filter(owner=instance).delete()
             for prompt in decision_prompts:
-                print('Prompt')
                 prompt['user'] = instance.id
-                print(prompt)
                 prompt_serializer = DecisionPromptSerializer(data=prompt)
                 if prompt_serializer.is_valid():
                     prompt_serializer.save()
         
         instance.save()
+
+        if invalidate_relics:
+            cache.delete(str(instance.user.channel_id) + 'RELICS')
+ 
+        if invalidate_deck:
+            cache.delete(str(instance.user.channel_id) + 'DECK')
+
+        if invalidate_nodes:
+            cache.delete(str(instance.user.channel_id) + 'NODES')
+
+        if invalidate_edges:
+            cache.delete(str(instance.user.channel_id) + 'EDGES')
+
+        if invalidate_decision:
+            cache.delete(str(instance.user.channel_id) + "DECISION")
+
         return instance

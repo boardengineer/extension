@@ -162,10 +162,10 @@ def update_player_view(request):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        cache.delete(str(player.user.channel_id) + 'PLAYER')
         serializer = NukingPlayerSerializer(player, data=request.data)
         if serializer.is_valid():
             serializer.save()
+            cache.delete(str(player.user.channel_id) + 'PLAYER')
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
