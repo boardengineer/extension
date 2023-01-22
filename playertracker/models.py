@@ -30,6 +30,7 @@ class Player(models.Model):
     relic_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
     map_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
     deck_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
+    decision_update_time = models.DateTimeField(default=datetime.datetime.now, blank=True)
 
 
 class Relic(models.Model):
@@ -78,6 +79,15 @@ class DecisionPrompt(models.Model):
 class DecisionOption(models.Model):
     prompt = models.ForeignKey(DecisionPrompt, related_name="options", on_delete=models.CASCADE)
 
+    x_pos = models.FloatField(default=0)
+    y_pos = models.FloatField(default=0)
+
+    height = models.FloatField(default=0)
+    width = models.FloatField(default=0)
+
+    value = models.CharField(max_length=200, default='')
+
 
 class DecisionVote(models.Model):
     option = models.ForeignKey(DecisionOption, related_name="votes", on_delete=models.CASCADE)
+    twitch_user_id = models.IntegerField(default=0)

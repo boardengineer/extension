@@ -1,8 +1,23 @@
 from django.core.cache import cache
 from rest_framework import serializers
-from playertracker.models import Player, Relic, Card, MapNode, MapEdge
+from playertracker.models import DecisionOption, DecisionPrompt, DecisionVote, Player, Relic, Card, MapNode, MapEdge
 
 from datetime import datetime
+
+
+class DecisionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DecisionOption
+        fields = ['id', 'x_pos', 'y_pos', 'height', 'width', 'value']
+
+
+class DecisionPromptSerializer(serializers.ModelSerializer):
+    options = DecisionOptionSerializer(many=True)
+
+    class Meta:
+        model = DecisionPrompt
+        fields = ['options']
+
 
 class CardSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -38,6 +53,7 @@ class MinPlayerSerializer(serializers.ModelSerializer):
     deck_update_time = serializers.SerializerMethodField()
     map_update_time = serializers.SerializerMethodField()
     relic_update_time = serializers.SerializerMethodField()
+    decision_update_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
@@ -45,7 +61,7 @@ class MinPlayerSerializer(serializers.ModelSerializer):
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
                 'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width', 'deck_update_time',
-                'map_update_time', 'relic_update_time']
+                'map_update_time', 'relic_update_time', 'decision_update_time']
 
     def get_deck_update_time(self, instance):
         return int(datetime.timestamp(instance.deck_update_time)) + 1
@@ -55,6 +71,9 @@ class MinPlayerSerializer(serializers.ModelSerializer):
 
     def get_relic_update_time(self,instance):
         return int(datetime.timestamp(instance.relic_update_time)) + 1
+
+    def get_decision_update_time(self,instance):
+        return int(datetime.timestamp(instance.decision_update_time)) + 1
 
 
 class NukingPlayerSerializer(serializers.ModelSerializer):

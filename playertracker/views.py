@@ -1,16 +1,59 @@
+import json
+
 from django.shortcuts import render
 from django.core.cache import cache
+from django.http import QueryDict
 from rest_framework import generics,status,viewsets
 from rest_framework.authentication import BasicAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from playertracker.models import Card,MapNode,MapEdge,Player,Relic
-from playertracker.serializers import CardSerializer,MapEdgeSerializer,MapNodeSerializer,MinPlayerSerializer,NukingPlayerSerializer,RelicSerializer
+from playertracker.models import Card, DecisionOption, DecisionPrompt, DecisionVote, MapNode,MapEdge,Player,Relic
+from playertracker.serializers import CardSerializer, DecisionOptionSerializer, DecisionPromptSerializer, MapEdgeSerializer,MapNodeSerializer,MinPlayerSerializer,NukingPlayerSerializer,RelicSerializer
 from users.models import User
 
 from datetime import datetime
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def decision_query(request, prompt_id):
+    cache_key = prompt_id + "DECISION_QUERY"
+    if cache.get(cache_key) is not None:
+        options_json = cache.get(cache_key)
+    else:
+        options = DecisionOption.objects.filter(prompt=prompt_id)
+        options_json = []
+        for option in options:
+            option_serializer = DecisionOptionSerializer(option)
+            count = DecisionVote.objects.filter(option=option).count()
+            data = option_serializer.data
+            data['votes'] = count
+            options_json.append(data)
+        cache.set(cache_key, options_json, 300)
+    return Response(options_json)
+
+
+@api_view(['PUT'])
+@authentication_classes([])
+@permission_classes([])
+def vote_view(request):
+    params = json.loads(request.body)
+    option = DecisionOption.objects.get(pk=params['option'])
+    user_id = params['userId']
+    DecisionVote.objects.filter(twitch_user_id=user_id).delete()
+
+    vote = DecisionVote(option=option)
+    vote.twitch_user_id = user_id
+    vote.save()
+
+    prompt_id = vote.option.prompt.id
+    cache_key = str(prompt_id) + "DECISION_QUERY"
+    cache.delete(cache_key)
+
+    return Response('')
 
 @api_view(['GET'])
 @authentication_classes([])
@@ -89,7 +132,21 @@ def readonly_player_list(request, channel_id):
             result_data['deck'] = deck_json
             cache.set(deck_cache_key, deck_json, 300)
 
+    if timestamp < datetime.timestamp(player.decision_update_time):
+        decision_cache_key = channel_id + "DECISION"
+        if cache.get(decision_cache_key) is not None:
+            result_data['decision_prompts'] = cache.get(decision_cache_key)
+        else:
+            prompts = DecisionPrompt.objects.filter(owner=player)
+            prompts_json = []
+            for prompt in prompts:
+                prompt_serializer = DecisionPromptSerializer(prompt)
+                prompts_json.append(prompt_serializer.data)
+            result_data['decision_prompts'] = prompts_json
+            cache.set(decision_cache_key, prompts_json, 300)
+
     return Response(result_data)
+
 
 @api_view(['GET','PUT','DELETE'])
 @authentication_classes([TokenAuthentication])
@@ -116,6 +173,3 @@ def update_player_view(request):
         player.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-def get_player(channel_id):
-    return "hello"
