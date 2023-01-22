@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from django.db import transaction
 from rest_framework import serializers
 from playertracker.models import DecisionOption, DecisionPrompt, DecisionVote, Player, Relic, Card, MapNode, MapEdge
 
@@ -26,13 +27,14 @@ class DecisionPromptSerializer(serializers.ModelSerializer):
         obj = DecisionPrompt(owner_id=validated_data.get('user'))
         options = validated_data.get('options')
         
-        obj.save()
-        if options is not None:
-            for option in options:
-                option['prompt_id'] = obj.id
-                option_serializer = DecisionOptionSerializer(data=option)
-                if option_serializer.is_valid():
-                    option_serializer.save()
+        with transaction.atomic():
+            obj.save()
+            if options is not None:
+                for option in options:
+                    option['prompt_id'] = obj.id
+                    option_serializer = DecisionOptionSerializer(data=option)
+                    if option_serializer.is_valid():
+                        option_serializer.save()
 
         return obj
 
@@ -138,70 +140,75 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         relics = validated_data.get('relics')
         if relics is not None:
-            invalidate_relics = True
-            instance.relic_update_time = datetime.now()
-            Relic.objects.filter(owner=instance).delete()
-            for relic in relics:
-                relic_serializer = RelicSerializer(data=relic)
-                if relic_serializer.is_valid():
-                    relic_serializer.save(owner=instance)
+            with transaction.atomic():
+                instance.relic_update_time = datetime.now()
+                Relic.objects.filter(owner=instance).delete()
+                for relic in relics:
+                    relic_serializer = RelicSerializer(data=relic)
+                    if relic_serializer.is_valid():
+                        relic_serializer.save(owner=instance)
+                invalidate_relics = True
         
 
         deck = validated_data.get('deck')
         if deck is not None:
-            invalidate_deck = True
-            Card.objects.filter(owner=instance).delete()
-            instance.deck_update_time = datetime.now()
-            for card in deck:
-                saved_card = Card(owner=instance)
+            with transaction.atomic():
+                Card.objects.filter(owner=instance).delete()
+                instance.deck_update_time = datetime.now()
+                for card in deck:
+                    saved_card = Card(owner=instance)
 
-                saved_card.name = card.get('name', saved_card.name)
-                saved_card.description = card.get('description', saved_card.description)
+                    saved_card.name = card.get('name', saved_card.name)
+                    saved_card.description = card.get('description', saved_card.description)
 
-                saved_card.save() 
+                    saved_card.save() 
+                invalidate_deck = True
 
         map_nodes = validated_data.get('map_nodes')
         if map_nodes is not None:
-            invalidate_nodes = True
-            instance.map_update_time = datetime.now()
-            MapNode.objects.filter(owner=instance).delete()
-            for map_node in map_nodes:
-                saved_node = MapNode(owner=instance)
+            with transaction.atomic():
+                instance.map_update_time = datetime.now()
+                MapNode.objects.filter(owner=instance).delete()
+                for map_node in map_nodes:
+                    saved_node = MapNode(owner=instance)
 
-                saved_node.x = map_node.get('x', saved_node.x)
-                saved_node.y = map_node.get('y', saved_node.y)
+                    saved_node.x = map_node.get('x', saved_node.x)
+                    saved_node.y = map_node.get('y', saved_node.y)
 
-                saved_node.offset_x = map_node.get('offset_x', saved_node.offset_x)
-                saved_node.offset_y = map_node.get('offset_y', saved_node.offset_y)
+                    saved_node.offset_x = map_node.get('offset_x', saved_node.offset_x)
+                    saved_node.offset_y = map_node.get('offset_y', saved_node.offset_y)
 
-                saved_node.symbol = map_node.get('symbol', saved_node.symbol)
+                    saved_node.symbol = map_node.get('symbol', saved_node.symbol)
 
-                saved_node.save()
+                    saved_node.save()
+                invalidate_nodes = True
 
 
         map_edges = validated_data.get('map_edges')
         if map_edges is not None:
-            invalidate_edges = True
-            instance.map_update_time = datetime.now()
-            MapEdge.objects.filter(owner=instance).delete()
-            for map_edge in map_edges:
-                saved_edge = MapEdge(owner=instance)
+            with transaction.atomic():
+                instance.map_update_time = datetime.now()
+                MapEdge.objects.filter(owner=instance).delete()
+                for map_edge in map_edges:
+                    saved_edge = MapEdge(owner=instance)
 
-                saved_edge.source = map_edge.get('source', saved_edge.source)
-                saved_edge.destination = map_edge.get('destination', saved_edge.destination)
+                    saved_edge.source = map_edge.get('source', saved_edge.source)
+                    saved_edge.destination = map_edge.get('destination', saved_edge.destination)
             
-                saved_edge.save()
+                    saved_edge.save()
+                invalidate_edges = True
 
         decision_prompts = validated_data.get('decision_prompts')
         if decision_prompts is not None:
-            invalidate_decision = True
-            instance.decision_update_time = datetime.now()
-            DecisionPrompt.objects.filter(owner=instance).delete()
-            for prompt in decision_prompts:
-                prompt['user'] = instance.id
-                prompt_serializer = DecisionPromptSerializer(data=prompt)
-                if prompt_serializer.is_valid():
-                    prompt_serializer.save()
+            with transaction.atomic():
+                instance.decision_update_time = datetime.now()
+                DecisionPrompt.objects.filter(owner=instance).delete()
+                for prompt in decision_prompts:
+                    prompt['user'] = instance.id
+                    prompt_serializer = DecisionPromptSerializer(data=prompt)
+                    if prompt_serializer.is_valid():
+                        prompt_serializer.save()
+                invalidate_decision = True
         
         instance.save()
 
