@@ -90,4 +90,4 @@ class DecisionOption(models.Model):
 
 class DecisionVote(models.Model):
     option = models.ForeignKey(DecisionOption, related_name="votes", on_delete=models.CASCADE)
-    twitch_user_id = models.IntegerField(default=0)
+    twitch_user_id = models.CharField(max_length=80)
