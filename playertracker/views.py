@@ -59,45 +59,58 @@ def vote_view(request):
 @permission_classes([])
 def readonly_player_list(request, channel_id):
     timestamp = int(request.query_params.get('timestamp',0))
-
-    try:
-        user = User.objects.get(channel_id=channel_id)
-    except User.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    try:
-        player = Player.objects.get(user=user)
-    except Player.DoesNotExist:
-        return Response(status=stats.HTTP_404_NOT_FOUND)
+    player = None
 
     player_cache_key = channel_id + 'PLAYER'
     if cache.get(player_cache_key) is not None:
         result_data = cache.get(player_cache_key)
     else:
-        print('fresh')
+        print('FRESH PLAYER FETCH')
+        try:
+            user = User.objects.get(channel_id=channel_id)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if player is None:
+            try:
+                player = Player.objects.get(user=user)
+            except Player.DoesNotExist:
+                return Response(status=stats.HTTP_404_NOT_FOUND)
+
         serializer = MinPlayerSerializer(player, context={'request':request})
         cache.set(player_cache_key, serializer.data, 300)
         result_data = serializer.data
 
-    if timestamp < datetime.timestamp(player.relic_update_time):
+    if timestamp < result_data['relic_update_time']:
         relics_cache_key = channel_id + 'RELICS'
 
         if cache.get(relics_cache_key) is not None:
             result_data['relics'] = cache.get(relics_cache_key)
         else:
+            if player is None:
+                try:
+                    player = Player.objects.get(user_id=result_data['user'])
+                except Player.DoesNotExist:
+                    return Response(status=stats.HTTP_404_NOT_FOUND)
+
             relics = Relic.objects.filter(owner=player)
             relics_json = []
             for relic in relics:
                 relic_serializer = RelicSerializer(relic)
                 relics_json.append(relic_serializer.data)
             result_data['relics'] = relics_json
-            cache.set(relics_cache_key, relics_json, 300)
+            cache.set(relics_cache_key + " 2", relics_json, 300)
 
-    if timestamp < datetime.timestamp(player.map_update_time):
+    if timestamp < result_data['map_update_time']:
         nodes_cache_key = channel_id + 'NODES'
         if cache.get(nodes_cache_key) is not None:
             result_data['map_nodes'] = cache.get(nodes_cache_key)
         else:
+            if player is None:
+                try:
+                    player = Player.objects.get(user_id=result_data['user'])
+                except Player.DoesNotExist:
+                    return Response(status=stats.HTTP_404_NOT_FOUND)
             nodes = MapNode.objects.filter(owner=player)
             nodes_json = []
             for node in nodes:
@@ -118,11 +131,16 @@ def readonly_player_list(request, channel_id):
             result_data['map_edges'] = edges_json
             cache.set(edges_cache_key, edges_json, 300)
 
-    if timestamp < datetime.timestamp(player.deck_update_time):
+    if timestamp < result_data['deck_update_time']:
         deck_cache_key = channel_id + 'DECK'
         if cache.get(deck_cache_key) is not None:
             result_data['deck'] = cache.get(deck_cache_key)
         else:
+            if player is None:
+                try:
+                    player = Player.objects.get(user_id=result_data['user'])
+                except Player.DoesNotExist:
+                    return Response(status=stats.HTTP_404_NOT_FOUND)
             cards = Card.objects.filter(owner=player)
             deck_json = []
             for card in cards:
@@ -131,11 +149,16 @@ def readonly_player_list(request, channel_id):
             result_data['deck'] = deck_json
             cache.set(deck_cache_key, deck_json, 300)
 
-    if timestamp < datetime.timestamp(player.decision_update_time):
+    if timestamp < result_data['decision_update_time']:
         decision_cache_key = channel_id + "DECISION"
         if cache.get(decision_cache_key) is not None:
             result_data['decision_prompts'] = cache.get(decision_cache_key)
         else:
+            if player is None:
+                try:
+                    player = Player.objects.get(user_id=result_data['user'])
+                except Player.DoesNotExist:
+                    return Response(status=stats.HTTP_404_NOT_FOUND)
             prompts = DecisionPrompt.objects.filter(owner=player)
             prompts_json = []
             for prompt in prompts:
