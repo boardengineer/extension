@@ -89,6 +89,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(relics_cache_key) is not None:
             result_data['relics'] = cache.get(relics_cache_key)
         else:
+            print('FRESH RELICS FETCH')
             relics = Relic.objects.filter(owner_id=result_data['player'])
             relics_json = []
             for relic in relics:
@@ -102,6 +103,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(nodes_cache_key) is not None:
             result_data['map_nodes'] = cache.get(nodes_cache_key)
         else:
+            print('FRESH NODES FETCH')
             nodes = MapNode.objects.filter(owner_id=result_data['player'])
             nodes_json = []
             for node in nodes:
@@ -114,6 +116,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(edges_cache_key) is not None:
             result_data['map_edges'] = cache.get(edges_cache_key)
         else:
+            print('FRESH EDGES FETCH')
             edges = MapEdge.objects.filter(owner=player)
             edges_json = []
             for edge in edges:
@@ -127,6 +130,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(deck_cache_key) is not None:
             result_data['deck'] = cache.get(deck_cache_key)
         else:
+            print('FRESH DECK FETCH')
             cards = Card.objects.filter(owner_id=result_data['player'])
             deck_json = []
             for card in cards:
@@ -140,6 +144,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(decision_cache_key) is not None:
             result_data['decision_prompts'] = cache.get(decision_cache_key)
         else:
+            print('FRESH DECISION FETCH')
             prompts = DecisionPrompt.objects.filter(owner_id=result_data['player'])
             prompts_json = []
             for prompt in prompts:
