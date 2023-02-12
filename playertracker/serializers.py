@@ -221,6 +221,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                     saved_edge.save()
                 invalidate_edges = True
 
+        prompt_serializer = None
         decision_prompts = validated_data.get('decision_prompts')
         if decision_prompts is not None:
             with transaction.atomic():
@@ -265,12 +266,13 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         if invalidate_decision:
             result_prompts = []
-            prompt = {}
-            result_options = []
-            for option in prompt_serializer.data['options']:
-                result_options.append(dict(option))
-            prompt['options'] = result_options
-            result_prompts.append(prompt)
+            if prompt_serializer is not None:
+                prompt = {}
+                result_options = []
+                for option in prompt_serializer.data['options']:
+                    result_options.append(dict(option))
+                prompt['options'] = result_options
+                result_prompts.append(prompt)
             decisions_cache_key = str(instance.user.channel_id) + 'DECISION'
             cache.set(decisions_cache_key, result_prompts, 300)
 
