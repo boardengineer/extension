@@ -222,8 +222,10 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
         if invalidate_deck:
             cache.delete(str(instance.user.channel_id) + 'DECK')
 
-        if invalidate_nodes or invalidate_edges:
+        if invalidate_nodes:
             cache.delete(str(instance.user.channel_id) + 'NODES')
+
+        if invalidate_edges:
             cache.delete(str(instance.user.channel_id) + 'EDGES')
 
         if invalidate_decision:
