@@ -180,6 +180,7 @@ def update_player_view(request):
             player_data.pop('map_edges', None)
             player_data.pop('deck', None)
             player_data.pop('decision_prompts', None)
+            player_data['player'] = player.id
 
             cache_key = str(player.user.channel_id) + 'PLAYER'
             cache.set(cache_key, player_data, 300)
