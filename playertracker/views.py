@@ -95,7 +95,7 @@ def readonly_player_list(request, channel_id):
                 relic_serializer = RelicSerializer(relic)
                 relics_json.append(relic_serializer.data)
             result_data['relics'] = relics_json
-            cache.set(relics_cache_key + " 2", relics_json, 300)
+            cache.set(relics_cache_key, relics_json, 300)
 
     if timestamp < result_data['map_update_time']:
         nodes_cache_key = channel_id + 'NODES'
