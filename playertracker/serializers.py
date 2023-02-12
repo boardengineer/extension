@@ -217,18 +217,38 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
         instance.save()
 
         if invalidate_relics:
-            cache.delete(str(instance.user.channel_id) + 'RELICS')
+            result_relics = []
+            for relic in relics:
+                result_relics.append(dict(relic))
+            relics_cache_key = str(instance.user.channel_id) + 'RELICS'
+            cache.set(relics_cache_key, result_relics, 300)
  
         if invalidate_deck:
-            cache.delete(str(instance.user.channel_id) + 'DECK')
+            result_deck = []
+            for card in deck:
+                result_deck.append(dict(card))
+            deck_cache_key = str(instance.user.channel_id) + 'DECK'
+            cache.set(deck_cache_key, result_deck, 300)
 
         if invalidate_nodes:
-            cache.delete(str(instance.user.channel_id) + 'NODES')
+            result_nodes = []
+            for node in map_nodes:
+                result_nodes.append(dict(node))
+            nodes_cache_key = str(instance.user.channel_id) + 'NODES'
+            cache.set(nodes_cache_key, result_nodes, 300)
 
         if invalidate_edges:
-            cache.delete(str(instance.user.channel_id) + 'EDGES')
+            result_edges = []
+            for edge in map_edges:
+                result_edges.append(dict(edge))
+            edges_cache_key = str(instance.user.channel_id) + 'EDGES'
+            cache.set(edges_cache_key, result_edges, 300)
 
         if invalidate_decision:
-            cache.delete(str(instance.user.channel_id) + "DECISION")
+            result_prompts = []
+            for prompt in decision_prompts:
+                result_prompts.append(dict(prompt))
+            decisions_cache_key = str(instance.user.channel_id) + 'DECISION'
+            cache.set(decisions_cache_key, result_prompts, 300)
 
         return instance

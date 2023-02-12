@@ -97,6 +97,7 @@ def readonly_player_list(request, channel_id):
                 relics_json.append(relic_serializer.data)
             result_data['relics'] = relics_json
             cache.set(relics_cache_key, relics_json, 300)
+        print(result_data['relics'])
 
     if timestamp < result_data['map_update_time']:
         nodes_cache_key = channel_id + 'NODES'
@@ -140,7 +141,7 @@ def readonly_player_list(request, channel_id):
             cache.set(deck_cache_key, deck_json, 300)
 
     if timestamp < result_data['decision_update_time']:
-        decision_cache_key = channel_id + "DECISION"
+        decision_cache_key = channel_id + 'DECISION'
         if cache.get(decision_cache_key) is not None:
             result_data['decision_prompts'] = cache.get(decision_cache_key)
         else:
@@ -173,8 +174,17 @@ def update_player_view(request):
         serializer = NukingPlayerSerializer(player, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            cache.delete(str(player.user.channel_id) + 'PLAYER')
-            print('Deleted Player Cache')
+
+            player_data = serializer.data
+            player_data.pop('relics', None)
+            player_data.pop('map_nodes', None)
+            player_data.pop('mape_edges', None)
+            player_data.pop('deck', None)
+            player_data.pop('decision_prompts', None)
+
+            cache_key = str(player.user.channel_id) + 'PLAYER'
+            cache.set(cache_key, player_data, 300)
+
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
