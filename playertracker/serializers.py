@@ -100,21 +100,16 @@ class MinPlayerSerializer(serializers.ModelSerializer):
         return int(datetime.timestamp(instance.decision_update_time)) + 1
 
 
-class TimestampField(serializers.Field):
-    def to_representation(self, value):
-        return int(value.timestamp())
-
-
 class NukingPlayerSerializer(serializers.ModelSerializer):
     relics = RelicSerializer(many=True, required=False)
     deck = CardSerializer(many=True, required=False)
     map_nodes = MapNodeSerializer(many=True, required=False)
     map_edges = MapEdgeSerializer(many=True, required=False)
     decision_prompts = DecisionPromptSerializer(many=True, required=False)
-    relic_update_time = TimestampField(required=False)
-    map_update_time = TimestampField(required=False)
-    deck_update_time = TimestampField(required=False)
-    decision_update_time = TimestampField(required=False)
+    deck_update_time = serializers.SerializerMethodField()
+    map_update_time = serializers.SerializerMethodField()
+    relic_update_time = serializers.SerializerMethodField()
+    decision_update_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
@@ -126,7 +121,20 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                 'relic_update_time', 'map_update_time', 'deck_update_time', 'decision_update_time',
                 'map_nodes', 'map_edges',
                 'relics', 'deck', 'decision_prompts']
-        
+    
+
+    def get_deck_update_time(self, instance):
+        return int(datetime.timestamp(instance.deck_update_time)) + 1
+
+    def get_map_update_time(self, instance):
+        return int(datetime.timestamp(instance.map_update_time)) + 1
+
+    def get_relic_update_time(self,instance):
+        return int(datetime.timestamp(instance.relic_update_time)) + 1
+
+    def get_decision_update_time(self,instance):
+        return int(datetime.timestamp(instance.decision_update_time)) + 1
+
     def update(self, instance, validated_data):
         #instance.user = validated_data.get('twitch_username', instance.twitch_username)
         instance.player_current_hp = validated_data.get('player_current_hp', instance.player_current_hp)
