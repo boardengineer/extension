@@ -178,14 +178,14 @@ def update_player_view(request):
             player_data = serializer.data
             player_data.pop('relics', None)
             player_data.pop('map_nodes', None)
-            player_data.pop('mape_edges', None)
+            player_data.pop('map_edges', None)
             player_data.pop('deck', None)
             player_data.pop('decision_prompts', None)
 
             cache_key = str(player.user.channel_id) + 'PLAYER'
             cache.set(cache_key, player_data, 300)
 
-            return Response(serializer.data)
+            return Response(player_data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':

@@ -100,12 +100,21 @@ class MinPlayerSerializer(serializers.ModelSerializer):
         return int(datetime.timestamp(instance.decision_update_time)) + 1
 
 
+class TimestampField(serializers.Field):
+    def to_representation(self, value):
+        return int(value.timestamp())
+
+
 class NukingPlayerSerializer(serializers.ModelSerializer):
     relics = RelicSerializer(many=True, required=False)
     deck = CardSerializer(many=True, required=False)
     map_nodes = MapNodeSerializer(many=True, required=False)
     map_edges = MapEdgeSerializer(many=True, required=False)
     decision_prompts = DecisionPromptSerializer(many=True, required=False)
+    relic_update_time = TimestampField(required=False)
+    map_update_time = TimestampField(required=False)
+    deck_update_time = TimestampField(required=False)
+    decision_update_time = TimestampField(required=False)
 
     class Meta:
         model = Player
@@ -114,6 +123,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
                 'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width',
+                'relic_update_time', 'map_update_time', 'deck_update_time', 'decision_update_time',
                 'map_nodes', 'map_edges',
                 'relics', 'deck', 'decision_prompts']
         
