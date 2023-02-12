@@ -12,6 +12,7 @@ class DecisionVoteSerializer(serializers.ModelSerializer):
 
 class DecisionOptionSerializer(serializers.ModelSerializer):
     prompt_id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False)
 
     class Meta:
         model = DecisionOption
@@ -264,15 +265,12 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
 
         if invalidate_decision:
             result_prompts = []
-            for prompt in decision_prompts:
-                result_prompt = dict(prompt)
-                new_options = result_prompt['options']
-                for option in new_options:
-                    option['id'] = option['prompt_id']
-                    option.pop('prompt_id', None)
-                result_prompt['options'] = new_options
-                
-                result_prompts.append(result_prompt)
+            prompt = {}
+            result_options = []
+            for option in prompt_serializer.data['options']:
+                result_options.append(dict(option))
+            prompt['options'] = result_options
+            result_prompts.append(prompt)
             decisions_cache_key = str(instance.user.channel_id) + 'DECISION'
             cache.set(decisions_cache_key, result_prompts, 300)
 
