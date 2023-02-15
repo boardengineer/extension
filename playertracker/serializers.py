@@ -12,6 +12,7 @@ class DecisionVoteSerializer(serializers.ModelSerializer):
 
 class DecisionOptionSerializer(serializers.ModelSerializer):
     prompt_id = serializers.IntegerField(required=False)
+    id = serializers.IntegerField(required=False)
 
     class Meta:
         model = DecisionOption
@@ -106,6 +107,10 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
     map_nodes = MapNodeSerializer(many=True, required=False)
     map_edges = MapEdgeSerializer(many=True, required=False)
     decision_prompts = DecisionPromptSerializer(many=True, required=False)
+    deck_update_time = serializers.SerializerMethodField()
+    map_update_time = serializers.SerializerMethodField()
+    relic_update_time = serializers.SerializerMethodField()
+    decision_update_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
@@ -114,9 +119,23 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                 'screen_height', 'screen_width',
                 'map_button_x', 'map_button_y','map_button_height', 'map_button_width', 'boss_name',
                 'deck_button_x', 'deck_button_y','deck_button_height', 'deck_button_width',
+                'relic_update_time', 'map_update_time', 'deck_update_time', 'decision_update_time',
                 'map_nodes', 'map_edges',
                 'relics', 'deck', 'decision_prompts']
-        
+    
+
+    def get_deck_update_time(self, instance):
+        return int(datetime.timestamp(instance.deck_update_time)) + 1
+
+    def get_map_update_time(self, instance):
+        return int(datetime.timestamp(instance.map_update_time)) + 1
+
+    def get_relic_update_time(self,instance):
+        return int(datetime.timestamp(instance.relic_update_time)) + 1
+
+    def get_decision_update_time(self,instance):
+        return int(datetime.timestamp(instance.decision_update_time)) + 1
+
     def update(self, instance, validated_data):
         #instance.user = validated_data.get('twitch_username', instance.twitch_username)
         instance.player_current_hp = validated_data.get('player_current_hp', instance.player_current_hp)
@@ -202,6 +221,7 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
                     saved_edge.save()
                 invalidate_edges = True
 
+        prompt_serializer = None
         decision_prompts = validated_data.get('decision_prompts')
         if decision_prompts is not None:
             with transaction.atomic():
@@ -217,18 +237,43 @@ class NukingPlayerSerializer(serializers.ModelSerializer):
         instance.save()
 
         if invalidate_relics:
-            cache.delete(str(instance.user.channel_id) + 'RELICS')
+            result_relics = []
+            for relic in relics:
+                result_relics.append(dict(relic))
+            relics_cache_key = str(instance.user.channel_id) + 'RELICS'
+            cache.set(relics_cache_key, result_relics, 300)
  
         if invalidate_deck:
-            cache.delete(str(instance.user.channel_id) + 'DECK')
+            result_deck = []
+            for card in deck:
+                result_deck.append(dict(card))
+            deck_cache_key = str(instance.user.channel_id) + 'DECK'
+            cache.set(deck_cache_key, result_deck, 300)
 
         if invalidate_nodes:
-            cache.delete(str(instance.user.channel_id) + 'NODES')
+            result_nodes = []
+            for node in map_nodes:
+                result_nodes.append(dict(node))
+            nodes_cache_key = str(instance.user.channel_id) + 'NODES'
+            cache.set(nodes_cache_key, result_nodes, 300)
 
         if invalidate_edges:
-            cache.delete(str(instance.user.channel_id) + 'EDGES')
+            result_edges = []
+            for edge in map_edges:
+                result_edges.append(dict(edge))
+            edges_cache_key = str(instance.user.channel_id) + 'EDGES'
+            cache.set(edges_cache_key, result_edges, 300)
 
         if invalidate_decision:
-            cache.delete(str(instance.user.channel_id) + "DECISION")
+            result_prompts = []
+            if prompt_serializer is not None:
+                prompt = {}
+                result_options = []
+                for option in prompt_serializer.data['options']:
+                    result_options.append(dict(option))
+                prompt['options'] = result_options
+                result_prompts.append(prompt)
+            decisions_cache_key = str(instance.user.channel_id) + 'DECISION'
+            cache.set(decisions_cache_key, result_prompts, 300)
 
         return instance

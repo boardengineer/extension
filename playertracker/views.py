@@ -78,8 +78,10 @@ def readonly_player_list(request, channel_id):
                 return Response(status=stats.HTTP_404_NOT_FOUND)
 
         serializer = MinPlayerSerializer(player, context={'request':request})
-        cache.set(player_cache_key, serializer.data, 300)
-        result_data = serializer.data
+        cache_data = serializer.data
+        cache_data['player'] = player.id
+        cache.set(player_cache_key, cache_data, 300)
+        result_data = cache_data
 
     if timestamp < result_data['relic_update_time']:
         relics_cache_key = channel_id + 'RELICS'
@@ -87,31 +89,22 @@ def readonly_player_list(request, channel_id):
         if cache.get(relics_cache_key) is not None:
             result_data['relics'] = cache.get(relics_cache_key)
         else:
-            if player is None:
-                try:
-                    player = Player.objects.get(user_id=result_data['user'])
-                except Player.DoesNotExist:
-                    return Response(status=stats.HTTP_404_NOT_FOUND)
-
-            relics = Relic.objects.filter(owner=player)
+            print('FRESH RELICS FETCH')
+            relics = Relic.objects.filter(owner_id=result_data['player'])
             relics_json = []
             for relic in relics:
                 relic_serializer = RelicSerializer(relic)
                 relics_json.append(relic_serializer.data)
             result_data['relics'] = relics_json
-            cache.set(relics_cache_key + " 2", relics_json, 300)
+            cache.set(relics_cache_key, relics_json, 300)
 
     if timestamp < result_data['map_update_time']:
         nodes_cache_key = channel_id + 'NODES'
         if cache.get(nodes_cache_key) is not None:
             result_data['map_nodes'] = cache.get(nodes_cache_key)
         else:
-            if player is None:
-                try:
-                    player = Player.objects.get(user_id=result_data['user'])
-                except Player.DoesNotExist:
-                    return Response(status=stats.HTTP_404_NOT_FOUND)
-            nodes = MapNode.objects.filter(owner=player)
+            print('FRESH NODES FETCH')
+            nodes = MapNode.objects.filter(owner_id=result_data['player'])
             nodes_json = []
             for node in nodes:
                 node_serializer = MapNodeSerializer(node)
@@ -123,6 +116,7 @@ def readonly_player_list(request, channel_id):
         if cache.get(edges_cache_key) is not None:
             result_data['map_edges'] = cache.get(edges_cache_key)
         else:
+            print('FRESH EDGES FETCH')
             edges = MapEdge.objects.filter(owner=player)
             edges_json = []
             for edge in edges:
@@ -136,12 +130,8 @@ def readonly_player_list(request, channel_id):
         if cache.get(deck_cache_key) is not None:
             result_data['deck'] = cache.get(deck_cache_key)
         else:
-            if player is None:
-                try:
-                    player = Player.objects.get(user_id=result_data['user'])
-                except Player.DoesNotExist:
-                    return Response(status=stats.HTTP_404_NOT_FOUND)
-            cards = Card.objects.filter(owner=player)
+            print('FRESH DECK FETCH')
+            cards = Card.objects.filter(owner_id=result_data['player'])
             deck_json = []
             for card in cards:
                 card_serializer = CardSerializer(card)
@@ -150,16 +140,12 @@ def readonly_player_list(request, channel_id):
             cache.set(deck_cache_key, deck_json, 300)
 
     if timestamp < result_data['decision_update_time']:
-        decision_cache_key = channel_id + "DECISION"
+        decision_cache_key = channel_id + 'DECISION'
         if cache.get(decision_cache_key) is not None:
             result_data['decision_prompts'] = cache.get(decision_cache_key)
         else:
-            if player is None:
-                try:
-                    player = Player.objects.get(user_id=result_data['user'])
-                except Player.DoesNotExist:
-                    return Response(status=stats.HTTP_404_NOT_FOUND)
-            prompts = DecisionPrompt.objects.filter(owner=player)
+            print('FRESH DECISION FETCH')
+            prompts = DecisionPrompt.objects.filter(owner_id=result_data['player'])
             prompts_json = []
             for prompt in prompts:
                 prompt_serializer = DecisionPromptSerializer(prompt)
@@ -187,8 +173,19 @@ def update_player_view(request):
         serializer = NukingPlayerSerializer(player, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            cache.delete(str(player.user.channel_id) + 'PLAYER')
-            return Response(serializer.data)
+
+            player_data = serializer.data
+            player_data.pop('relics', None)
+            player_data.pop('map_nodes', None)
+            player_data.pop('map_edges', None)
+            player_data.pop('deck', None)
+            player_data.pop('decision_prompts', None)
+            player_data['player'] = player.id
+
+            cache_key = str(player.user.channel_id) + 'PLAYER'
+            cache.set(cache_key, player_data, 300)
+
+            return Response(player_data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
